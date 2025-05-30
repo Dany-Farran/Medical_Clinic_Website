@@ -1,4 +1,4 @@
-Vertal Clinic Website by Dany Farran (M00937227) & Andrew Venter (M00937221)
+Vertal Clinic Website
 
 Instructions to use:
 
