@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en"> <!-- Specifying webpage language-->
+<head>
+    <meta charset="UTF-8"> <!-- Specifying character encoding for correct display of characters-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Setting content width to screen size with no zoom-->
+    <title>Healthcare Center - Doctor</title> <!-- Webpage title-->
+    <link rel="stylesheet" href="styles_coursework.css"> <!-- CSS file reference-->
+    <link rel="icon" type="image/x-icon" href="logo.png.webp"> <!-- Website logo-->
+    <script>
+        let db;
+
+        // Open IndexedDB and set up the Records store
+        let request = indexedDB.open("VertalDB", 1);
+
+        request.onupgradeneeded = function(event) {
+            db = event.target.result;
+            let recordStore = db.createObjectStore("Records", { keyPath: 'recordID', autoIncrement: true }); // KeyPath set to recordID
+            recordStore.createIndex("RecordID", "recordID", { unique: true });
+            recordStore.createIndex("AppointmentID", "appointmentID", { unique: true });
+            recordStore.createIndex("PatientID", "patientID", { unique: true });
+            recordStore.createIndex("Diagnosis", "diagnosis", { unique: false });
+            recordStore.createIndex("TreatmentPlan", "treatmentPlan", { unique: false });
+            recordStore.createIndex("DateCreated", "dateCreated", { unique: false });
+        };
+
+        request.onsuccess = function(event) {
+            console.log("Database opened successfully");
+            db = event.target.result;
+        };
+
+        request.onerror = function(event) {
+            console.log("Error opening database:", event.target.errorCode);
+        };
+
+        // Function to get query parameters from URL
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // Function to update navigation links with query parameters
+        window.onload = function updateNavLink() {
+            const email = getQueryParam('emailId');
+            const identity = getQueryParam('identity');
+            const loginButton = document.getElementById('login-button');
+            const homeButton = document.getElementById('home-button');
+            const aboutButton = document.getElementById('about-button');
+
+            if (email && identity) {
+                loginButton.href = "login.html?emailId=" + email + "&identity=" + identity;
+                homeButton.href = "index.html?emailId=" + email + "&identity=" + identity;
+                aboutButton.href = "about.html?emailId=" + email + "&identity=" + identity;
+            } else {
+                loginButton.href = 'login.html'
+                homeButton.href = 'index.html'
+                aboutButton.href = 'about.html'
+            }
+        };
+    </script>
+
+</head>
+<body>
+    <header>
+        <a class="homeTitle" style="color: black;" id="homeButton" href="#">VERTAL CLINIC</a>  <!-- Header section with a clickable home -->
+    </header>
+    <!-- Navigation bar with menu items -->
+    <nav>
+        <div class="navbar">
+            <ul>
+                <li><a id="login-button">Log-In</a></li>
+                <li><a id="home-button">Home</a></li>
+                <li><a id="about-button">About Us</a></li>
+                <li><a id="contact-button">Contact Us</a></li>
+                <li><a id="help-button">Help</a></li>
+            </ul>
+        </div>
+    </nav>
+    
+    <!-- Form section for submitting a medical record -->
+    <div class="form-wrap">
+        <div class="form-box">
+            <h3> Submit Record </h3>
+            <div class="form-group">
+                <label for="appointmentID"> Appointment ID</label>
+                <input id="appointmentID">
+            </div>
+            <div class="form-group">
+                <label for="patientID"> Patient ID</label>
+                <input id="patientID">
+            </div>
+            <div class="form-group">
+                <label for="diagnosis"> Diagnosis</label>
+                <input id="diagnosis">
+            </div>
+            <div class="form-group">
+                <label for="treatmentPlan"> Treatment Plan</label>
+                <textarea style="width: 280px;" id="treatmentPlan"> </textarea>
+            </div>
+            <div class="form-group">
+                <label for="dateCreated"> Date Created: </label>
+                <input type="date" id="dateCreated">
+            </div>
+            <div class="form-group">
+                <button id="submitRecord" onclick="submitRecord()"> Submit Record </button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Vertal Clinic. All Rights Reserved.</p> <!-- Footer text -->
+    </footer>
+    <script>
+        function submitRecord() {
+            // Retrieve values from the input fields
+            const appointmentID = document.getElementById('appointmentID').value;
+            const patientID = document.getElementById('patientID').value;
+            const diagnosis = document.getElementById('diagnosis').value;
+            const treatmentPlan = document.getElementById('treatmentPlan').value;
+            const dateCreated = document.getElementById('dateCreated').value;
+
+            // Validate that all fields are filled in
+            if (!appointmentID || !patientID || !diagnosis || !treatmentPlan || !dateCreated) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            // Generate a random recordID
+            const recordID = Math.floor(Math.random() * 1000000); // Generates a random integer between 0 and 999999
+
+            // Create a new record object with the generated recordID
+            const newRecord = {
+                recordID: recordID, // Assign the random recordID
+                appointmentID: appointmentID,
+                patientID: patientID,
+                diagnosis: diagnosis,
+                treatmentPlan: treatmentPlan,
+                dateCreated: dateCreated
+            };
+
+            // Open a transaction to insert the new record
+            const transaction = db.transaction("Records", "readwrite");
+            const objectStore = transaction.objectStore("Records");
+
+            const request = objectStore.add(newRecord);
+
+            request.onsuccess = function(event) {
+                alert("Record added successfully with Record ID: " + recordID);
+                // Optionally, clear the form after submission
+                document.getElementById('appointmentID').value = '';
+                document.getElementById('patientID').value = '';
+                document.getElementById('diagnosis').value = '';
+                document.getElementById('treatmentPlan').value = '';
+                document.getElementById('dateCreated').value = '';
+            };
+
+            request.onerror = function(event) {
+                alert("Error adding record: " + event.target.errorCode);
+            };
+        }
+
+    </script>
+</body>
+</html>

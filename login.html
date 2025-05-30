@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en"> <!-- Specifying webpage language-->
+<head>
+    <meta charset="UTF-8"> <!-- Specifying character encoding for correct display of characters-->
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Setting content width to screen size with no zoom-->
+    <title>Healthcare Center - Login</title> <!-- Title of the page-->
+    <link rel="stylesheet" href="styles_coursework.css">  <!-- CSS file reference-->
+	<link rel="icon" type="image/x-icon" href="logo.png.webp"> <!-- Website Logo -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script> <!-- Including CryptoJS module-->
+	<script>
+    // Opening a connection to VertalDB
+    let request = indexedDB.open("VertalDB", 1);
+    var db;
+    
+    request.onupgradeneeded = function(event) {
+        // Creating Doctors object store carrying necessary indexes
+        db = event.target.result; // Connection object to interact with the database
+        let doctorStore = db.createObjectStore("Doctors", {keyPath: 'id'}); // id index field
+        doctorStore.createIndex("FirstName", "first_name", {unique: false}); // first_name index field
+        doctorStore.createIndex("LastName", "last_name", {unique: false}); // last_name index field
+        doctorStore.createIndex("Password", "Password", {unique: true}); // Password index field
+        doctorStore.createIndex("Email", "email", {unique: true}); // email index field
+        doctorStore.createIndex("Gender", "gender", {unique: false}); // gender index field
+        doctorStore.createIndex("Address", "Address", {unique: false}); // Address index field
+        doctorStore.createIndex("Telephone", "Telephone", {unique: false}); // Telephone index field
+
+        // Creating Patients object store carrying necessary indexes
+        let patientStore = db.createObjectStore("Patients", {keyPath: 'id'});
+        patientStore.createIndex("NHS", "NHS", {unique: true});
+        patientStore.createIndex("Title", "Title", {unique: false});
+        patientStore.createIndex("FirstName", "First", {unique: false});
+        patientStore.createIndex("LastName", "Last", {unique: false});
+        patientStore.createIndex("Password", "Password", {unique: true});
+        patientStore.createIndex("DOB", "DOB", {unique: false});
+        patientStore.createIndex("Gender", "Gender", {unique: false});
+        patientStore.createIndex("Address", "Address", {unique: false});
+        patientStore.createIndex("Email", "Email", {unique: true});
+        patientStore.createIndex("Telephone", "Telephone", {unique: true});
+        patientStore.createIndex("Notes", "Notes", {unique: false});
+
+        // Creating Admins object store carrying necessary indexes
+        let adminStore = db.createObjectStore("Admins", {keyPath: 'id'});
+        adminStore.createIndex("FirstName", "first_name", {unique: false});
+        adminStore.createIndex("LastName", "last_name", {unique: false});
+        adminStore.createIndex("Email", "email", {unique: true});
+        adminStore.createIndex("Password", "Password", {unique: true});
+
+        // Creating Medicines object store carrying necessary indexes
+        let medicineStore = db.createObjectStore("Medicines", {keyPath: 'id'});
+        medicineStore.createIndex("Drug", "Drug", {unique: false});
+
+        // Creating Appointments object store carrying necessary indexes
+        let appointmentStore = db.createObjectStore("Appointments", { keyPath: 'id', autoIncrement: true });
+        appointmentStore.createIndex("AppointmentID", "appointmentID", {unique: true});
+        appointmentStore.createIndex("DoctorID", "doctorID", {unique: false});
+        appointmentStore.createIndex("PatientID", "patientID", {unique: false});
+        appointmentStore.createIndex("Prescription", "prescription", {unique: false});
+        appointmentStore.createIndex("Quantity", "quantity", {unique: false});
+        appointmentStore.createIndex("Date", "date", {unique: false});
+        appointmentStore.createIndex("Time", "time", {unique: false});
+
+        // Creating Records object store carrying necessary indexes
+        let recordStore = db.createObjectStore("Records", {keyPath: 'id', autoIncrement: true});
+        recordStore.createIndex("RecordID", "recordID", {unique: true});
+        recordStore.createIndex("AppointmentID", "appointmentID", {unique: true});
+        recordStore.createIndex("PatientID", "patientID", {unique: true});
+        recordStore.createIndex("Diagnosis", "diagnosis", {unique: false});
+        recordStore.createIndex("TreatmentPlan", "treatmentPlan", {unique: false});
+        recordStore.createIndex("DateCreated", "dateCreated", {unique: false});
+    };
+
+    // On success event handler if connection to the database was established
+    request.onsuccess = function(event) {
+        console.log("Database opened successfully");
+        db = event.target.result;
+        
+        // Calling the fetchDataAndInsert function carrying JSON links, Object Stores, and calling appropriate functions depending on data
+        fetchDataAndInsert('https://jsethi-mdx.github.io/cst2572.github.io/doctors.json', 'Doctors', insertDoctorsData);
+        fetchDataAndInsert('https://jsethi-mdx.github.io/cst2572.github.io/patients.json', 'Patients', insertPatientsData);
+        fetchDataAndInsert('https://jsethi-mdx.github.io/cst2572.github.io/admin.json', 'Admins', insertAdminsData);
+        fetchDataAndInsert('https://jsethi-mdx.github.io/cst2572.github.io/medicines.json', 'Medicines', insertMedicinesData);
+    };
+
+    // Error event handler displaying errorCode
+    request.onerror = function(event) {
+        console.log("Error opening database:", event.target.errorCode);
+    };
+
+    // fetchDataAndInsert function carrying url, storename, and insertFunction variables
+    function fetchDataAndInsert(url, storeName, insertFunction) {
+        fetch(url) // Fetch url variable
+        .then(response => response.json()) // If response established, fetch data
+        .then(data => {
+            console.log('Data fetched for ${storeName}:', data);
+            insertFunction(data, storeName); // Insert data and storeName to appropriate object store
+        })
+        .catch(error => {
+            console.log('Error fetching data:', error);
+        });
+    }
+
+    // generatePassword function to generate random 8 character password
+    function generatePassword() {
+    let chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^-'
+    let length = 8
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * chars.length);
+        result += chars[randomIndex];
+    }
+    return result;
+    }
+
+    // insertDoctorsData function caryying data and storeName variables
+    function insertDoctorsData(data, storeName) {
+        var encryptionKey = "1234567890987654321" // encryptionKey variable carrying encryption method
+        var transaction = db.transaction(storeName, "readwrite"); // Creating a a read write transaction for storeName to manipulate object store
+        var objectStore = transaction.objectStore(storeName);
+
+        data.forEach((item, index) => { // Iterating over each record
+        let newDoctor = { // Creating newDoctor object for each record
+            id: item.id,
+            first_name: item.first_name,
+            last_name: item.last_name,
+            Password: CryptoJS.AES.encrypt(generatePassword(), encryptionKey).toString(), // Encrypt password
+            email: CryptoJS.AES.encrypt(item.email, encryptionKey).toString(), // Encrypt email
+            gender: item.gender,
+            Address: CryptoJS.AES.encrypt(item.Address, encryptionKey).toString(), // Encrypt address
+            Telephone: CryptoJS.AES.encrypt(item.Telephone, encryptionKey).toString(), // Encrypt telephone
+        };
+
+        if (index === 0) {
+            console.log("First Doctor Data:", {
+                Email: CryptoJS.AES.decrypt(newDoctor.email, encryptionKey).toString(CryptoJS.enc.Utf8),
+                Password: CryptoJS.AES.decrypt(newDoctor.Password, encryptionKey).toString(CryptoJS.enc.Utf8),
+            });
+        }
+
+        // Add doctor to the object store
+        var request = objectStore.add(newDoctor);
+
+        // On success event handler
+        request.onsuccess = function() {
+            console.log("Doctor added:", newDoctor.first_name);
+        };
+
+        // Error event handler
+        request.onerror = function(event) {
+            console.log("Error adding doctor:", event.target.errorCode);
+        };
+    });
+    }
+    
+    // insertPatientsData containing data and storeName variables
+    function insertPatientsData(data, storeName) {
+        var encryptionKey = "1234567890987654321" // encryption method
+        var transaction = db.transaction(storeName, "readwrite"); // read write transaction
+        var objectStore = transaction.objectStore(storeName);
+
+        // Iterate over each patient record and append each patient data to correct index
+        data.forEach((item, index) => {
+            let newPatient = {
+                id: item.id,
+                NHS: CryptoJS.AES.encrypt(item.NHS, encryptionKey).toString(),
+                Title: item.Title,
+                First: item.First,
+                Last: item.Last,
+                Password: CryptoJS.AES.encrypt(generatePassword(), encryptionKey).toString(),
+                DOB: item.DOB,
+                Gender: item.Gender,
+                Address: CryptoJS.AES.encrypt(item.Address, encryptionKey).toString(),
+                Email: CryptoJS.AES.encrypt(item.Email, encryptionKey).toString(),
+                Telephone: CryptoJS.AES.encrypt(item.Telephone, encryptionKey).toString(),
+                Notes: item.Notes || "",
+            };
+            if (index === 0) {
+                console.log("First Patient Data:", {
+                    Email: CryptoJS.AES.decrypt(newPatient.Email, encryptionKey).toString(CryptoJS.enc.Utf8),
+                    Password: CryptoJS.AES.decrypt(newPatient.Password, encryptionKey).toString(CryptoJS.enc.Utf8),
+                });
+            }
+            for (let key in newPatient) {
+                if (newPatient.hasOwnProperty(key)) {
+                    let value = newPatient
+                }
+            }
+
+            var request = objectStore.add(newPatient);
+
+            // Successful event handling
+            request.onsuccess = function() {
+                console.log("Patient added:", newPatient.First);
+            };
+
+            // Error event handling
+            request.onerror = function(event) {
+                console.log("Error adding patient:", event.target.errorCode);
+            };
+        });
+    }
+
+    // insertAdminsData carrying data and storeName variable
+    function insertAdminsData(data, storeName) {
+        var encryptionKey = "1234567890987654321";
+        var transaction = db.transaction(storeName, "readwrite");
+        var objectStore = transaction.objectStore(storeName);
+
+        // Iterating over each data item in store object
+        data.forEach((item, index) => {
+            let newAdmin = {
+                id: item.id,
+                first_name: item.first_name,
+                last_name: item.last_name,
+                Password: CryptoJS.AES.encrypt(generatePassword(), encryptionKey).toString(), // Encrypt password
+                email: CryptoJS.AES.encrypt(item.email, encryptionKey).toString(), // Encrypt email
+            };
+
+            // Log the first admin's decrypted email and password
+            if (index === 0) {
+                console.log("First Admin Data:", {
+                    Email: CryptoJS.AES.decrypt(newAdmin.email, encryptionKey).toString(CryptoJS.enc.Utf8),
+                    Password: CryptoJS.AES.decrypt(newAdmin.Password, encryptionKey).toString(CryptoJS.enc.Utf8),
+                });
+            }
+
+            var request = objectStore.add(newAdmin); // Append to objectStore
+
+            request.onsuccess = function() {
+                console.log("Admin added:", newAdmin.first_name);
+            };
+
+            request.onerror = function(event) {
+                console.log("Error adding admin:", event.target.errorCode);
+            };
+        });
+    }
+
+    // insertMedicinesData function carrying data and storeName variable
+    function insertMedicinesData(data, storeName) {
+        var transaction = db.transaction(storeName, "readwrite");
+        var objectStore = transaction.objectStore(storeName);
+
+        // Iterating over each data item in store object
+        data.forEach(item => {
+            let newMedicine = {
+                id: item.id,
+                Drug: item.Drug
+            };
+            
+            var request = objectStore.add(newMedicine);
+
+            request.onsuccess = function() {
+                console.log("Medicine added for patient:", newMedicine.Drug);
+            };
+
+            request.onerror = function(event) {
+                console.log("Error adding medicine:", event.target.errorCode);
+            };
+        });
+    }
+    </script>
+</head>
+<body>
+    <header>
+		<a class="homeTitle" style="color: black;" href="index.html">VERTAL CLINIC </a> <!-- Webpage title-->
+    </header>
+	<div class="logo">
+		<img src="logo.png.webp" alt="Vertal_Clinic_Logo"> <!-- Website logo-->
+	</div> 
+		<nav class="navbar"> <!-- Navigation links-->
+            <ul>
+				<li><a id="login-button">Log-In</a></li>
+				<li><a id="home-button">Home</a></li>
+				<li><a id="about-button">About Us</a></li>
+				<li><a id="contact-button">Contact Us</a></li>
+				<li><a id="help-button">Help</a></li>
+            </ul>
+        </nav>
+    <div class="form-wrap"> <!-- Form creation-->
+        <div class="form-box">
+            <h3 style="font-size: 22px;">LOG-IN</h3>  
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="text" id="emailId" name="emailId" required> <!-- Required email input field-->
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="passwordId" required> <!-- Required password input field-->
+                </div>
+                <div class="form-group">
+                    <label>You are a:</label>
+                    <select name="identity" id="identity"> <!-- Role selection -->
+                        <option value="patient">Patient</option>
+                        <option value="doctor">Doctor</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="button" onclick="handleLogin()" style="margin-top: 5px;">Log-In</button> <!-- Button to call handleLogin function-->
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+	    function handleLogin() {
+            const encryptionKey = "1234567890987654321"; // Encryption method
+            // Retrieve user inputs in Login form
+            var email = document.getElementById('emailId').value;
+            var password = document.getElementById('passwordId').value; 
+            var identity = document.getElementById('identity').value;
+
+            // Input sanitization
+            email = email.replace(/[&<>"'\\\/]/g, '&amp');
+            password = password.replace(/[&<>"'\\\/]/g, '&amp');
+
+            // Check if all fields are filled
+            if (!email || !password || !identity) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            // Create a read-only transaction to object stores (Admin, Doctor, Patient)
+            // Checks identity and chooses matching object store
+            let transaction = db.transaction(
+                identity === "patient" ? "Patients" : identity === "doctor" ? "Doctors" : "Admins", 
+                "readonly"
+            );
+            
+            // Access the specific object store within the transaction for performing database operations
+            let store = transaction.objectStore(
+                identity === "patient" ? "Patients" : identity === "doctor" ? "Doctors" : "Admins"
+            );
+            
+            let index = store.index("Email"); // Access Email index in object store
+
+            let request = index.getAll(); // Retrieve all emails from Email index
+
+            // Success event handler
+            request.onsuccess = function(event) {
+                let users = event.target.result;
+                let foundUser = null; // Variable to hold a matching user
+                
+                users.forEach(user => {
+                    let encryptedEmail = user.Email || user.email; // Checks each email in object store
+
+                    // Decrypts each email until a match is found
+                    if (encryptedEmail) {
+                        let decryptedEmail = CryptoJS.AES.decrypt(encryptedEmail, encryptionKey).toString(CryptoJS.enc.Utf8);
+
+                        // If email matches, check the password
+                        if (decryptedEmail === email) {
+                            let decryptedPassword = CryptoJS.AES.decrypt(user.Password, encryptionKey).toString(CryptoJS.enc.Utf8);
+
+                            // If password also matches, set foundUser
+                            if (decryptedPassword === password) {
+                                foundUser = user;
+                            }
+                        }
+                    }
+                });
+
+                if (foundUser) {
+                    // Redirect based on identity
+                    if (identity === "admin") {
+                        window.location.href = "adminPage.html?identity=" + identity + "&emailId=" + email;
+                    } else {
+                        window.location.href = "index.html?identity=" + identity + "&emailId=" + email;
+                    }
+                } else {
+                    alert("Invalid email or password. Please try again.");
+                }
+            };
+
+            request.onerror = function(event) {
+                console.log("Error accessing the database:", event.target.errorCode);
+            };
+        }
+        // getQueryParam function to retrieve URL parameters
+		function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // updateNavLink function called on window load
+        window.onload = function updateNavLink() {
+            // Retrieve URL parameters
+			const email = getQueryParam('emailId');
+			const identity = getQueryParam('identity');
+			const loginButton = document.getElementById('login-button');
+			const homeButton = document.getElementById('home-button');
+			const aboutButton = document.getElementById('about-button');
+			
+            // If email and identity available, redirect with URL parameters
+            // Else redirect without URL parameters
+			if (email && identity) {
+				loginButton.href = "login.html?emailId=" + email + "&identity=" + identity;
+				homeButton.href = "index.html?emailId=" + email + "&identity=" + identity;
+				aboutButton.href = "about.html?emailId=" + email + "&identity=" + identity;
+			} else {
+				loginButton.href = 'login.html'
+				homeButton.href = 'index.html'
+				aboutButton.href = 'about.html'
+			}
+		}
+    </script>
+	<footer> <!-- Footer text-->
+		<p> &copy; 2024 Vertal Clinic. All Rights Reserved.</p> <br>
+	</footer>
+</body>
+</html>

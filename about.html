@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en"> <!-- Specifying webpage language-->
+<head>
+	<meta charset="UTF-8"> <!-- Specifying character encoding for correct display of characters-->
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Setting content width to screen size with no zoom-->
+    <title>Healthcare Center - About Us</title> <!-- Title of the page-->
+    <link rel="stylesheet" href="styles_coursework.css"> <!-- CSS file reference-->
+	<link rel="icon" type="image/x-icon" href="logo.png.webp"> <!-- Website Logo-->
+    <script>
+        // getQueryParam function to retrieve URL parameters (emailId & identity)
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // Calling updateNavLink function on window load
+        window.onload = function updateNavLink() {
+			const email = getQueryParam('emailId');
+			const identity = getQueryParam('identity');
+			const loginButton = document.getElementById('login-button');
+			const homeButton = document.getElementById('home-button');
+			const aboutButton = document.getElementById('about-button');
+			
+            // Navigate to different links with URL parameters if  already logged in
+			if (email && identity) {
+				loginButton.href = "login.html?emailId=" + email + "&identity=" + identity;
+				homeButton.href = "index.html?emailId=" + email + "&identity=" + identity;
+				aboutButton.href = "about.html?emailId=" + email + "&identity=" + identity;
+            // If not logged in
+			} else {
+				loginButton.href = 'login.html'
+				homeButton.href = 'index.html'
+				aboutButton.href = 'about.html'
+			}
+		}
+    </script>
+
+</head>
+<body>
+    <header>
+        <a class="homeTitle" style="color: black;" id="homeButton" href="#">VERTAL CLINIC</a> <!-- Webpage header-->
+    </header>
+    <nav> <!-- Navigation links-->
+        <div class="navbar">
+            <ul>
+                <li><a id="login-button">Log-In</a></li>
+                <li><a id="home-button">Home</a></li>
+                <li><a id="about-button">About Us</a></li>
+                <li><a id="contact-button">Contact Us</a></li>
+                <li><a id="help-button">Help</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section><br>
+        <h2>About Us</h2> <!-- About Us section-->
+    </section>
+
+    <div class="logo">
+        <img src="logo.png.webp" width="100" height="200" alt="Vertal_Clinic_Logo"> <!-- Website Logo-->
+    </div>
+
+    <div class="about"> <!-- About us text-->
+        <p>Welcome to Vertal Clinic! We're here to help you. With years of treating and providing patients with the best healthcare possible on our name,
+            it is our mission and purpose to ensure that at Vertal Clinic, you are taken care of. No matter the diagnosis, our renowned and globally recognized 
+            healthcare practitioners are ready to assist and provide you with the services and treatments that you need to get your health and life back on track.</p>
+        <img src="smiling_doctor.jpg" alt="smiling_doctor" class="bottom-image"> <!-- Images-->
+		<img src="doctors_operating.jpg" alt="doctors_operating_on_patient_with_special_equipment" class="bottom-image" style="width: 38.47%;">
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Vertal Clinic. All Rights Reserved.</p> <!-- Footer text-->
+    </footer>
+
+</body>
+</html>

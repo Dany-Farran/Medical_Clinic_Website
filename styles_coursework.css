@@ -1,0 +1,203 @@
+html {
+    height: auto; 
+    border: 5px solid black; 
+    box-sizing: border-box; 
+}
+
+body {
+    font-family: Arial;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+.homeTitle {
+	font-weight: bold;
+	font-size: 36px;
+	text-decoration: none;
+	text-align: center;
+    font-family: Roboto;
+}
+
+header {
+	background-color: lightblue;
+	padding: 1px;
+	height: 60px;
+}
+
+.form-wrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+    width: 100%;
+}
+
+.form-box {
+    background-color: rgb(236, 236, 236);
+    padding: 30px 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    width: 100%;
+}
+
+.form-group{
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+input {
+	margin-left: 10px;
+}
+
+textarea {
+	border-radius: 10px;
+}
+
+input, select {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+#medicineDropDown {
+    font-size: 6px;
+}
+
+button {
+    padding: 10px;
+    width: 100%;
+    background-color: #EC7474;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+	margin-top: 30px;
+}
+
+.delete-button, .edit-button, .view-button{
+    width: 100%;
+    font-family: Roboto;
+    font-style: italic;
+    background-color: #EC7474;
+    color: black;
+    font-size: 16px;
+    border: none;
+    border-radius: 10px;
+    margin: 0;
+    display: block;
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+option {
+    font-size: 18px;
+}
+
+label {
+    flex-basis: 100px;
+	margin-top: 10px;
+}
+
+.navbar ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: black;
+    display: flex;
+    justify-content: center;
+}
+
+.navbar li a {
+    color: white;
+    padding: 0px 16px;
+    text-decoration: none;
+    text-align: center;
+}
+
+.navbar li a:hover {
+    background-color: lightblue;
+}
+
+.hidden {
+    display: none;
+}
+
+footer {
+    background-color: lightblue;
+    color: white;
+    text-align: center;
+	height: 50px;
+    width: 100%;
+}
+
+p {
+	font-size: 16px;
+	color: black;
+	text-align: center;
+}
+
+.logo img {
+	width: 52px;
+	height: 52px;
+	float: none;
+	margin: 0;
+}
+
+.logo {
+	position: absolute;
+	top: 10px;
+	left: 10px;
+}
+
+.about p{
+    text-align: center;
+    justify-content: center;
+}
+
+.hidden {
+    display: none;
+}
+
+.checkboxClass {
+	width: 20px;
+	height: 20px;
+	margin-top: 13px;
+}
+
+table {
+    width: 80%;
+    border-collapse: collapse;
+    margin: 0 auto;
+    font-family: Roboto;
+    font-style: italic;
+}
+
+th, td {
+    padding: 3px;
+    border: 1px solid black;
+    text-align: center;
+}
+
+th {
+    background-color: yellow;
+    color: black;
+    text-align: center;
+}
+
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+tr:hover {
+    background-color: #f1f1f1;
+}

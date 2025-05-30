@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en"> <!-- Specifying webpage language-->
+<head>
+    <meta charset="UTF-8"> <!-- Specifying character encoding for correct display of characters-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Setting content width to screen size with no zoom-->
+    <title>Healthcare Center - View Patient</title> <!-- Webpage title-->
+    <link rel="stylesheet" href="styles_coursework.css"> <!-- CSS file reference-->
+    <link rel="icon" type="image/x-icon" href="logo.png.webp"> <!-- Website logo-->
+</head>
+<body>
+    <header>
+        <a class="homeTitle" style="color: black;" href="index.html">VERTAL CLINIC</a> <!-- Header section with a clickable home -->
+    </header>
+    <!-- Navigation links-->
+    <nav class="navbar">
+        <ul>
+            <li><a href="login.html">Log-In</a></li>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About Us</a></li>
+            <li><a href="contact.html">Contact Us</a></li>
+            <li><a href="help.html">Help</a></li>
+        </ul>
+    </nav>
+    <!-- View patient information-->
+    <div class="form-wrap">
+        <div class="form-box">
+            <div class="form-group">
+                <h2 id="patient-title"></h2>
+            </div>
+            <div class="form-group">
+                <p id="patient-nhs"></p>
+            </div>
+            <div class="form-group">
+                <p id="patient-dob"></p>
+            </div>
+            <div class="form-group">
+                <p id="patient-gender"></p>
+            </div>
+            <div class="form-group">
+                <p id="patient-address"></p>
+            </div>
+            <div class="form-group">
+                <p id="patient-email"></p>
+            </div>
+            <div class="form-group">
+                <p id="patient-telephone"></p>
+            </div>
+            <div class="form-group">
+                <textarea style="width: 80%; height:20%;" id="addNotes" placeholder="Notes go here..."></textarea> <!-- Patient notes input-->
+            </div>
+            <div class="form-group">
+                <button id="submitNotes" onclick="submitNotes()"> Submit </button> <!-- Submit button to call submitNotes function -->
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Vertal Clinic. All Rights Reserved.</p> <br> <!-- Footer text -->
+    </footer>
+
+    <script>     
+    let db;
+
+    // Open the IndexedDB database and initialize `db`
+    function openDatabase() {
+        const request = indexedDB.open('VertalDB', 1); // Replace 'VertalDB' with your DB name
+
+        request.onupgradeneeded = function(event) {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('Patients')) {
+                db.createObjectStore('Patients', { keyPath: 'id' });
+            }
+        };
+
+        request.onsuccess = function(event) {
+            db = event.target.result; // Store the database object for later use
+            console.log('Database opened successfully');
+        };
+
+        request.onerror = function(event) {
+            console.error('Error opening database:', event.target.errorCode);
+        };
+    }
+
+    // Call openDatabase function on window load
+    window.onload = openDatabase;
+        // getPatientParams function to retrieve patient id
+        function getPatientParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                id: params.get('id'),
+            };
+        }
+
+        // Appending patient id to patientId variable
+        const queryParams = getPatientParams();
+        const patientId = queryParams.id;
+
+        // fetchPatientData function
+        async function fetchPatientData() {
+            try {
+                const response = await fetch('https://jsethi-mdx.github.io/cst2572.github.io/patients.json');
+                const patients = await response.json();
+
+                const patient = patients.find(p => p.id === parseInt(patientId));
+                if (patient) {
+                    document.getElementById('patient-title').textContent = `${patient.Title} ${patient.First} ${patient.Last}`;
+                    document.getElementById('patient-nhs').textContent = `NHS: ${patient.NHS}`;
+                    document.getElementById('patient-dob').textContent = `DOB: ${patient.DOB}`;
+                    document.getElementById('patient-gender').textContent = `Gender: ${patient.Gender}`;
+                    document.getElementById('patient-address').textContent = `Address: ${patient.Address}`;
+                    document.getElementById('patient-email').textContent = `Email: ${patient.Email}`;
+                    document.getElementById('patient-telephone').textContent = `Telephone: ${patient.Telephone}`;
+                } else {
+                    document.getElementById('patient-info').textContent = "Patient not found.";
+                }
+            } catch (error) {
+                console.error('Error fetching patient data:', error);
+                document.getElementById('patient-info').textContent = "Error fetching patient data.";
+            }
+        }
+
+        // This function appends notes to the patient's record in IndexedDB
+        async function submitNotes() {
+    if (!db) {
+        console.log("Database is not initialized yet.");
+        return;
+    }
+
+    const patientId = getPatientParams().id; // Get the patient ID from URL parameters
+    const newNotes = document.getElementById('addNotes').value.trim(); // Get the notes text
+
+    if (!newNotes) {
+        alert("Please enter some notes.");
+        return;
+    }
+
+    let transaction = db.transaction(['Patients'], 'readwrite');
+    let store = transaction.objectStore('Patients');
+    let request = store.get(parseInt(patientId)); // Get patient data by ID
+
+    request.onsuccess = function(event) {
+        let patient = event.target.result;
+        if (patient) {
+            // Check if the Notes field exists and is an array, otherwise initialize it
+            if (Array.isArray(patient.Notes)) {
+                patient.Notes.push(newNotes); // Append the new notes if it's an array
+            } else {
+                patient.Notes = [newNotes]; // Initialize as an array if it wasn't
+            }
+
+            // Save the updated patient object with the new notes
+            let updateRequest = store.put(patient);
+
+            // Event handler on success if patient was updated
+            updateRequest.onsuccess = function() {
+                alert("Notes added successfully!");
+                console.log("Patient updated:", patient);
+            };
+
+            // Event handler for error if patient update was unsuccessful
+            updateRequest.onerror = function(event) {
+                console.error("Error updating patient notes:", event.target.errorCode);
+            };
+        } else {
+            alert("Patient not found.");
+        }
+    };
+
+    // Error handling
+    request.onerror = function(event) {
+        console.error("Error fetching patient:", event.target.errorCode);
+    };
+
+    // Transaction logging
+    transaction.oncomplete = function() {
+        console.log("Transaction completed successfully!");
+    };
+
+    // Error handling for transaction
+    transaction.onerror = function(event) {
+        console.error("Transaction error:", event.target.errorCode);
+    };
+}
+
+        fetchPatientData();
+    </script>
+</body>
+</html>

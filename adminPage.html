@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en"> <!-- Specifying webpage language-->
+<head>
+    <meta charset="UTF-8"> <!-- Specifying character encoding for correct display of characters-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Setting content width to screen size with no zoom-->
+    <link rel="stylesheet" href="styles_coursework.css"> <!-- CSS file reference-->
+    <title>Healthcare Center - Admin</title>  <!-- Title of the page-->
+	<link rel="icon" type="image/x-icon" href="logo.png.webp"> <!-- Website Logo-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script> <!-- Including CryptoJS module-->
+</head>
+<body>
+    <header>
+		<a class="homeTitle" style="color: black;" href="index.html">VERTAL CLINIC</a> <!-- Header hyperlink to index-->
+    </header>
+	<div class="logo">
+		<img src="logo.png.webp" width="100" height="200" alt="Vertal_Clinic_Logo"> <!-- Logo with class 'logo' modifications-->
+    </div>
+    <!-- Navigation links-->
+	<nav class="navbar">
+        <ul>
+			<li><a id="login-button">Log-In</a></li>
+			<li><a id="home-button">Home</a></li>
+			<li><a id="about-button">About Us</a></li>
+			<li><a id="contact-button">Contact Us</a></li>
+			<li><a id="help-button">Help</a></li>
+        </ul>
+    </nav>
+    <!-- Button functions calling several functions-->
+		    <button style='width: 200px;' onclick="displayAllPatients()">Display Patients</button>
+            <button style='width: 200px;' onclick="searchPatient()">Search Patient</button>
+		    <button style='width: 200px; margin-bottom: 10px;' onclick="addPatient()">Add Patient</button>
+	<div id="result" style="min-height: 80vh;"></div> <!-- Table result-->
+	<footer> <!-- Footer text-->
+		<p> &copy; 2024 Vertal Clinic. All Rights Reserved.</p> <br>
+	</footer>
+    <script>
+         // Open a connection to VertalDB
+        let request = indexedDB.open("VertalDB", 1);
+
+         // Event handler for a successful database connection
+        request.onsuccess = function(event) {
+            db = event.target.result; // Save the database connection to a variable
+            console.log("Database opened successfully");
+        };
+
+         // Event handler for an error
+        request.onerror = function(event) {
+            console.error("Error opening database:", event.target.errorCode);
+        };
+
+        // Function to display all patients from the Patients object store.
+        function displayAllPatients() {
+            const encryptionKey = "1234567890987654321" // Encryption method
+            let resultDiv = document.getElementById('result'); //Result div to display results
+            resultDiv.innerHTML = ''; //Clearing result content
+
+            if (!db) {
+                console.log("Database is not initialized yet.");
+                return;
+            }
+
+            // Create a read-only transaction on the Patients object store.
+            let transaction = db.transaction(['Patients'], 'readonly');
+            let store = transaction.objectStore('Patients');
+            let request = store.openCursor(); // Open a cursor to iterate through all entries in Patients object store
+
+            // Create a table to display patient data
+            let table = document.createElement('table');
+            table.className = "custom-table";
+
+            // Add table headers
+            let headerRow = table.insertRow();
+            let headers = ['Patient ID', 'NHS', 'First', 'Last', 'DOB', 'Gender', 'Address', 'Email', 'Telephone', 'Actions'];
+            
+            headers.forEach(headerText => {
+                let th = document.createElement('th');
+                th.textContent = headerText;
+                headerRow.appendChild(th);
+            });
+
+            // Event handler for cursor success
+            request.onsuccess = function(event) {
+                let cursor = event.target.result;
+
+                if (cursor) {
+                    let patient = cursor.value; // Get current patient data
+                    
+                    // Create a new row for the patient data
+                    let row = table.insertRow();
+                    row.insertCell(0).textContent = patient.id;
+                    row.insertCell(1).textContent = CryptoJS.AES.decrypt(patient.NHS, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    row.insertCell(2).textContent = patient.First;
+                    row.insertCell(3).textContent = patient.Last;
+                    row.insertCell(4).textContent = patient.DOB;
+                    row.insertCell(5).textContent = patient.Gender;
+                    row.insertCell(6).textContent = CryptoJS.AES.decrypt(patient.Address, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    row.insertCell(7).textContent = CryptoJS.AES.decrypt(patient.Email, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    row.insertCell(8).textContent = CryptoJS.AES.decrypt(patient.Telephone, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    
+                    // Create action buttons (Edit and Delete)
+                    let actionsCell = row.insertCell(9);
+
+                    let editButton = document.createElement('button');
+                    editButton.textContent = 'Edit';
+                    editButton.className = 'edit-button';
+                    editButton.onclick = function() {
+                        editPatient(patient.id); // Call editPatient function on click
+                    };
+                    actionsCell.appendChild(editButton);
+
+                    let deleteButton = document.createElement('button');
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.className = 'delete-button';
+                    deleteButton.onclick = function() {
+                        deletePatient(patient.id); // Call deletePatient function on click
+                    };
+                    actionsCell.appendChild(deleteButton);
+
+                    // Continue to next record
+                    cursor.continue();
+                } else {
+                    // If no records are found, show a message or append the table
+                    if (table.rows.length > 1) {
+                        resultDiv.appendChild(table);
+                    } else {
+                        resultDiv.innerHTML = "<p>No patients found in the Database</p>";
+                    }
+                }
+            };
+
+            // Event handler for error
+            request.onerror = function(event) {
+                console.log('Error fetching data:', event.target.errorCode);
+            };
+        }
+
+        // editPatient function carrying patientId variable
+        function editPatient(patientId) {
+            if (!db) {
+                console.log("Database is not initialized yet.");
+                return;
+            }
+            const encryptionKey = "1234567890987654321"
+
+            let transaction = db.transaction(['Patients'], 'readwrite');
+            let store = transaction.objectStore('Patients');
+            let request = store.get(patientId);
+
+            request.onsuccess = function(event) {
+                let patient = event.target.result;
+                if (patient) {
+                    // Decrypt fields before displaying them
+                    const decryptedNHS = CryptoJS.AES.decrypt(patient.NHS, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    const decryptedAddress = CryptoJS.AES.decrypt(patient.Address, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    const decryptedEmail = CryptoJS.AES.decrypt(patient.Email, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    const decryptedTelephone = CryptoJS.AES.decrypt(patient.Telephone, encryptionKey).toString(CryptoJS.enc.Utf8);
+
+                    // Prompt for new values, pre-filled with decrypted data
+                    const updatedNHS = prompt("Enter a new NHS:", decryptedNHS) || decryptedNHS;
+                    const updatedFirst = prompt("Enter a new First Name:", patient.First) || patient.First;
+                    const updatedLast = prompt("Enter a new Last Name:", patient.Last) || patient.Last;
+                    const updatedDOB = prompt("Enter a new Date of Birth:", patient.DOB) || patient.DOB;
+                    const updatedGender = prompt("Enter a new Gender:", patient.Gender) || patient.Gender;
+                    const updatedAddress = prompt("Enter a new Address:", decryptedAddress) || decryptedAddress;
+                    const updatedEmail = prompt("Enter a new Email:", decryptedEmail) || decryptedEmail;
+                    const updatedTelephone = prompt("Enter a new Telephone:", decryptedTelephone) || decryptedTelephone;
+                    
+                    // Encrypt the updated fields before saving back to the database
+                    patient.NHS = CryptoJS.AES.encrypt(updatedNHS, encryptionKey).toString();
+                    patient.First = updatedFirst;
+                    patient.Last = updatedLast;
+                    patient.DOB = updatedDOB;
+                    patient.Gender = updatedGender;
+                    patient.Address = CryptoJS.AES.encrypt(updatedAddress, encryptionKey).toString();
+                    patient.Email = CryptoJS.AES.encrypt(updatedEmail, encryptionKey).toString();
+                    patient.Telephone = CryptoJS.AES.encrypt(updatedTelephone, encryptionKey).toString();
+
+                    // Update the patient record in the database
+                    let updateRequest = store.put(patient);
+                    
+                    // Event handler for a successful update
+                    updateRequest.onsuccess = function() {
+                        alert("Patient updated successfully!");
+                        displayAllPatients();
+                    }
+                    
+                    // Event handler for an error during the update
+                    updateRequest.onerror = function(event) {
+                        console.error("Error updating patient:", event.target.errorCode)
+                    }
+            }  else {
+                alert("Patient not found.")
+            }
+            }
+             // Event handler for an error during fetching the patient record
+            request.onerror = function(event) {
+                console.error("Error fetching patient", event.target.errorCode);
+            }
+        }
+
+        function deletePatient(id) {
+            // Start a read write transaction on the Patients object store
+            let transaction = db.transaction(['Patients'], 'readwrite');
+            let store = transaction.objectStore('Patients');
+            let request = store.delete(id); // Request to delete a patient record by their ID.
+
+            // Event handler for successful deletion
+            request.onsuccess = function() {
+                console.log('Patient deleted with ID:', id);
+                displayAllPatients(); // Refresh patient list
+            };
+
+            // Event handler for errors during deletion
+            request.onerror = function(event) {
+                console.log('Error deleting patient:', event.target.errorCode);
+            };
+        }
+
+        function searchPatient() {
+        const encryptionKey = '1234567890987654321' // Encryption method
+            // Prompt the user for the patient ID to search for
+            let patientId = parseInt(prompt("Enter the Patient ID to search for:"), 10);
+            
+            // Check if the database is initialized or if the input is valid
+            if (!db || isNaN(patientId)) {
+                console.log("Database not initialized or invalid input.");
+                return;
+            }
+
+            // Start a read only transaction on the Patients object store
+            let transaction = db.transaction(['Patients'], 'readonly');
+            let store = transaction.objectStore('Patients');
+            let request = store.get(patientId); // Request to retrieve patient by ID
+
+            // Event handler for a successful retrieval
+            request.onsuccess = function(event) {
+                let patient = event.target.result;
+                let resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = '';
+
+                if (patient) {
+                    // Create a table to display the patient data
+                    let table = document.createElement('table');
+                    table.className = "custom-table";
+
+                    // Add table headers
+                    let headerRow = table.insertRow();
+                    let headers = ['Patient ID', 'NHS', 'First', 'Last', 'DOB', 'Gender', 'Address', 'Email', 'Telephone', 'Actions'];
+                    
+                    headers.forEach(headerText => {
+                        let th = document.createElement('th');
+                        th.textContent = headerText;
+                        headerRow.appendChild(th);
+                    });
+
+                    // Add the patient data to the table
+                    let row = table.insertRow();
+                    row.insertCell(0).textContent = patient.id;
+                    row.insertCell(1).textContent = CryptoJS.AES.decrypt(patient.NHS, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    row.insertCell(2).textContent = patient.First;
+                    row.insertCell(3).textContent = patient.Last;
+                    row.insertCell(4).textContent = patient.DOB;
+                    row.insertCell(5).textContent = patient.Gender;
+                    row.insertCell(6).textContent = CryptoJS.AES.decrypt(patient.Address, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    row.insertCell(7).textContent = CryptoJS.AES.decrypt(patient.Email, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    row.insertCell(8).textContent = CryptoJS.AES.decrypt(patient.Telephone, encryptionKey).toString(CryptoJS.enc.Utf8);
+                    
+                    // Add action buttons (Edit and Delete) for the patient record
+                    let actionsCell = row.insertCell(9);
+                
+                    let editButton = document.createElement('button');
+                    editButton.textContent = 'Edit';
+                    editButton.className = 'edit-button';
+                    editButton.onclick = function() {
+                        editPatient(patient.id); // Call editPatient function
+                    };
+                    actionsCell.appendChild(editButton);
+
+                    let deleteButton = document.createElement('button');
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.className = 'delete-button';
+                    deleteButton.onclick = function() {
+                        deletePatient(patient.id); // Call deletePatient function
+                    };
+                    actionsCell.appendChild(deleteButton);
+
+                    // Append the table to the result div
+                    resultDiv.appendChild(table);
+                } else {
+                    // If no patient is found, display a message
+                    resultDiv.innerHTML = "<p>No patient found with ID " + patientId + "</p>";
+                }
+            };
+            // Event handler for errors during retrieval
+            request.onerror = function(event) {
+                console.error("Error searching for patient:", event.target.errorCode);
+            };
+        }
+        // addPatient function
+        function addPatient() {
+            // Event handler for errors during retrieval
+            if (!db) {
+                console.log("Database is not initialized yet.");
+                return;
+            }
+
+            // Get user input
+            const id = prompt("Enter patient ID:");
+            if (!id || isNaN(id)) {
+                alert("Invalid Patient ID. Please enter a numeric ID.");
+                return;
+            }
+
+            // Prompting user to add new patient credentials
+            const NHS = prompt("Enter NHS number:");
+            const Title = prompt("Enter Title (e.g., Mr, Mrs, Dr):");
+            const First = prompt("Enter First Name:");
+            const Last = prompt("Enter Last Name:");
+            const DOB = prompt("Enter Date of Birth (e.g., 22/09/1984):");
+            const Gender = prompt("Enter Gender:");
+            const Address = prompt("Enter Address:");
+            const Email = prompt("Enter Email:");
+            const Telephone = prompt("Enter Telephone number:");
+
+            // Validate the necessary fields
+            if (!First || !Last || !DOB || !Gender || !Address || !Email || !Telephone) {
+                alert("All fields are required.");
+                return;
+            }
+
+            const encryptionKey = "1234567890987654321"; // The key used for encryption
+
+            // Encrypt the sensitive fields
+            const encryptedNHS = CryptoJS.AES.encrypt(NHS, encryptionKey).toString();
+            const encryptedAddress = CryptoJS.AES.encrypt(Address, encryptionKey).toString();
+            const encryptedEmail = CryptoJS.AES.encrypt(Email, encryptionKey).toString();
+            const encryptedTelephone = CryptoJS.AES.encrypt(Telephone, encryptionKey).toString();
+
+            let transaction = db.transaction(['Patients'], 'readwrite');
+            let store = transaction.objectStore('Patients');
+
+            // Check if a patient with the same ID already exists
+            let checkRequest = store.get(parseInt(id));
+            checkRequest.onsuccess = function(event) {
+                let existingPatient = event.target.result;
+                if (existingPatient) {
+                    alert("A patient with this ID already exists.");
+                    return;
+                }
+
+                // Create the new patient object with encrypted fields
+                let newPatient = {
+                    id: parseInt(id),
+                    NHS: encryptedNHS, // Encrypted
+                    Title: Title,
+                    First: First,
+                    Last: Last,
+                    DOB: DOB,
+                    Gender: Gender,
+                    Address: encryptedAddress, // Encrypted
+                    Email: encryptedEmail, // Encrypted
+                    Telephone: encryptedTelephone // Encrypted
+                };
+
+                // Add the new patient to the store
+                let request = store.add(newPatient);
+
+                // Event handler for successful addition of patient
+                request.onsuccess = function() {
+                    console.log("Patient added successfully with ID:", newPatient.id);
+                    alert("Patient added successfully!");
+                    displayAllPatients();  // Refresh the patient list
+                };
+
+                // Event handler for error in addition of patient
+                request.onerror = function(event) {
+                    console.error("Error adding patient:", event.target.errorCode);
+                    alert("Failed to add patient. Patient ID might already exist.");
+                };
+            };
+
+            checkRequest.onerror = function(event) {
+                console.error("Error checking for existing patient:", event.target.errorCode);
+            };
+        }
+
+
+        // getQueryParam function to retrieve URL parameters
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // updateNavLink function to navigate web pages with or without parameters
+        function updateNavLink() {
+            const email = getQueryParam('emailId');
+            const identity = getQueryParam('identity')
+            const loginButton = document.getElementById('login-button');
+            const homeButton = document.getElementById('home-button');
+            const aboutButton = document.getElementById('about-button');
+            
+            // If already logged in
+            if (email && identity) {
+                loginButton.href = "login.html?emailId=" + email + "&identity=" + identity;
+                homeButton.href = "index.html?emailId=" + email + "&identity=" + identity;
+                aboutButton.href = "about.html?emailId=" + email + "&identity=" + identity;
+            // If not logged in
+            } else {
+                loginButton.href = 'login.html'
+                homeButton.href = 'index.html'
+                aboutButton.href = 'about.html'
+            }
+        }
+        // Calling updateNavLink on window load
+        window.onload = function() {
+            updateNavLink();
+        };
+
+</script>
+</body>
+</html>

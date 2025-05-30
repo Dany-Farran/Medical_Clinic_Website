@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en"> <!-- Specifying webpage language-->
+<head>
+	<meta charset="UTF-8"> <!-- Specifying character encoding for correct display of characters-->
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Setting content width to screen size with no zoom-->
+    <title>Healthcare Center - Home</title> <!-- Title of the page-->
+    <link rel="stylesheet" href="styles_coursework.css"> <!-- CSS file reference-->
+	<link rel="icon" type="image/x-icon" href="logo.png.webp"> <!-- Website Logo-->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script> <!-- Including CryptoJS module-->
+</head>
+<body>
+	<header>
+		<a class="homeTitle" style="color: black;" href="index.html">VERTAL CLINIC</a> <!-- Header hyperlink to index-->
+    </header>
+	<div class="logo">
+		<img src="logo.png.webp" width="100" height="200" alt="Vertal_Clinic_Logo"> <!-- Logo with class 'logo' modifications-->
+    </div>
+	<!-- Navigation links-->
+	<nav class="navbar">
+        <ul>
+			<li><a id="login-button">Log-In</a></li>
+			<li><a id="home-button">Home</a></li>
+			<li><a id="about-button">About Us</a></li>
+			<li><a id="contact-button">Contact Us</a></li>
+			<li><a id="help-button">Help</a></li>
+        </ul>
+    </nav>
+	<!-- Index content displayed when no user is signed in. Displays ER Diagram-->
+	<div id="index-content" class="hidden">
+		<h3 id="displayIndex"></h3>
+		<img src="VertalDB_ER_Diagram.png" alt="VertalDB_Table_Relations_Diagram">
+	</div>
+	<!-- Patient content to display a patient's interface-->
+	<h3 id="displayPatient"></h3>
+	<div id="patient-content" class="hidden">
+		<!-- Patient Form-->
+		<div class="form-wrap">
+			<div class="form-box"> <!-- Form creation-->
+				<form>
+					<div class="form-group"> <!-- Separating inputs to groups-->
+						<label for="doctor-notes"> Doctor Notes </label>
+						<textarea style="width: 290px; height: 90px;" id="doctor-notes" readonly></textarea> <!-- Doctor notes displayed here-->
+					</div>
+					<div class="form-group">
+						<label for="selected-doctor">Request Doctor</label>
+						<select id="selected-doctor" style="width: 60.4%;" required>
+							<option value="" selected>Select a doctor</option> <!-- Optional doctor field. Default value is null-->
+						</select>
+					</div>					
+					<div class="form-group">
+						<label for="appointment-date">Date:</label>
+						<input type="date" id="appointment-date" required> <!-- Date format to select date-->
+					</div>
+					<div class="form-group">
+						<label for="appointment-time">Time:</label>
+						<input type="time" id="appointment-time" required> <!-- Time format to select time-->
+					</div>
+					<div class="form-group">
+						<label for="prescription-info">Request Prescription</label> <br> <br>
+						<select style="width: 34%;" id="prescription-info" required>
+							<option value="" selected>Select a medicine</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<label for="quantity-info">Quantity</label> <br> <br>
+						<input type="number" id="quantity-info" required> <br> <br>
+					</div>
+					<!-- Book appointment button which takes in the id and calls validation function-->
+					<div class="form-group">
+						<button type="button" id="bookAppointment" onclick="validation('bookAppointment')" style="margin-top: 5px;">Book Appointment</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+	<!-- Doctor content with 3 buttons displaying different tables-->
+	<div id="doctor-content" class="hidden">
+		<h3 id="displayDoctor"></h3>
+		<button style="width: 200px;" onclick="displayAllPatients()">Display Patients</button>
+		<button style="width: 200px;" onclick="displayAllAppointments()"> Display Appointments </button>
+		<button style="width: 200px;" onclick="searchPatient()">Search Patient</button>
+		<button style="width: 200px; margin-bottom: 10px;" onclick="createRecord()">Create Record</button>
+		<div style="min-height: 80vh;" id="result"></div>
+	</div>
+	<script>
+		// Opening a connection to VertalDB
+		let requestDB = indexedDB.open("VertalDB", 1);
+		
+		// Event handler triggered if request to opening database was established
+		requestDB.onsuccess = function(event) {
+			db = event.target.result; // Connection object to interact with the database
+			console.log("Database opened successfully");
+		};
+	
+		requestDB.onerror = function(event) { // Error event handler displaying error code in log
+			console.error("Error opening database:", event.target.errorCode);
+		};
+		// Display patient notes in the notes field by searching the emailId
+		function displayPatientNotes() {
+			let email = getQueryParam('emailId');
+			console.log('Email ID:', email);
+
+			const request = indexedDB.open('VertalDB');
+
+			request.onsuccess = function (event) {
+				const db = event.target.result;
+				const transaction = db.transaction(['Patients'], 'readonly'); // A read only transaction interacting with Patients object store
+				const store = transaction.objectStore('Patients'); // Accessing Patient object store data
+				const requestAll = store.getAll(); // Retrieving all Patient data
+
+				requestAll.onsuccess = function () {
+					const patients = requestAll.result; //Assigns array of patient data to patients
+
+					// Loop through the patients and find a match for the decrypted email
+					let foundUser = null;
+					for (const patient of patients) {
+						const decryptedEmail = decryptEmail(patient.Email); // Decrypt the stored email
+						if (decryptedEmail === email) { // Match email
+							foundUser = patient;
+							console.log(foundUser)
+							break;
+						}
+					}
+
+					const notesElement = document.getElementById('doctor-notes');
+					if (foundUser) {
+						// Ensure notes are handled as an array (join them with newlines if it's an array)
+						if (Array.isArray(foundUser.Notes) && foundUser.Notes.length > 0) {
+							notesElement.textContent = foundUser.Notes.join('\n'); // Join the notes array with new lines
+						} else {
+							notesElement.textContent = 'No notes available.'; // If no notes are present
+						}
+						console.log('Patient Notes:', foundUser.notes);
+					} else {
+						console.error('No patient found with the provided email.');
+						notesElement.textContent = 'Patient not found.';
+					}
+				};
+
+				requestAll.onerror = function () {
+					console.error('Error fetching data from IndexedDB');
+				};
+			};
+
+		request.onerror = function () {
+			console.error('Failed to open IndexedDB');
+		};
+		}
+
+// Appointments Table
+		function displayAllAppointments() {
+			let resultDiv = document.getElementById('result');
+			resultDiv.innerHTML = ''; // Empty string where content goes
+	
+			if (!db) {
+				console.log("Database is not initialized yet.");
+				return;
+			}
+			
+			// Interacting with Appointments object store data
+			let transaction = db.transaction(['Appointments'], 'readonly');
+			let store = transaction.objectStore('Appointments');
+			let cursorRequest = store.openCursor(); // Creating a variable to go through each record in the object store
+	
+			let table = document.createElement('table'); // Creating table element and assigning it custom-table class
+			table.className = "custom-table";
+	
+			let headerRow = table.insertRow(); // Creating a header row for the table header
+			// Table headers
+			let headers = ['Appointment ID', 'Doctor', 'Patient ID', 'Prescription', 'Quantity', 'Time', 'Date'];
+			
+			// Appending headers array to headerRow
+			headers.forEach(headerText => {
+				let th = document.createElement('th'); // Creating th elements for storing headers
+				th.textContent = headerText;
+				headerRow.appendChild(th);
+			});
+			
+
+			cursorRequest.onsuccess = function(event) {
+				let cursor = event.target.result;
+				
+				// Assigning the current cursor value to the appointment variable for readability
+				if (cursor) {
+					let appointment = cursor.value;
+					
+					// Creating a table row and populating it with appointment record details
+					let row = table.insertRow();
+					row.insertCell(0).textContent = appointment.appointmentID;
+					row.insertCell(1).textContent = appointment.doctorID;
+					row.insertCell(2).textContent = appointment.patientID;
+					row.insertCell(3).textContent = appointment.prescription;
+					row.insertCell(4).textContent = appointment.quantity;
+					row.insertCell(5).textContent = appointment.time;
+					row.insertCell(6).textContent = appointment.date;
+
+					cursor.continue();
+				} else {
+					if (table.rows.length > 1) { // Checks if table has more than 1 row (first row reserved for headers) and displays records if there are
+						resultDiv.appendChild(table);
+					} else {
+						resultDiv.innerHTML = "<p>No appointments found in the Database</p>"; // No records
+					}
+				}
+			};
+		}
+		
+		// Patients table
+		function displayAllPatients() {
+			const encryptionKey = "1234567890987654321" //Encryption key format
+			let resultDiv = document.getElementById('result');
+			resultDiv.innerHTML = ''; // Empty string where content goes
+	
+			if (!db) {
+				console.log("Database is not initialized yet.");
+				return;
+			}
+			
+			// Accessing Patients data with read only transaction
+			let transaction = db.transaction(['Patients'], 'readonly');
+			let store = transaction.objectStore('Patients');
+			let cursorRequest = store.openCursor();
+			
+			// Table creation for Patients
+			let table = document.createElement('table');
+			table.className = "custom-table";
+	
+			let headerRow = table.insertRow(); // Headers for Patients table
+			let headers = ['Patient ID', 'NHS', 'First', 'Last', 'DOB', 'Gender', 'Address', 'Email', 'Telephone', 'Actions'];
+			
+			// Creating header rows
+			headers.forEach(headerText => {
+				let th = document.createElement('th'); // Creating th elements for storing headers
+				th.textContent = headerText;
+				headerRow.appendChild(th);
+			});
+	
+			cursorRequest.onsuccess = function(event) {
+				let cursor = event.target.result;
+				
+				// Assigning the current cursor value to the patient variable for readability
+				if (cursor) {
+					let patient = cursor.value;
+					
+					// Creating a table row and populating it with patient record details
+					let row = table.insertRow();
+					row.insertCell(0).textContent = patient.id;
+					row.insertCell(1).textContent = CryptoJS.AES.decrypt(patient.NHS, encryptionKey).toString(CryptoJS.enc.Utf8);
+					row.insertCell(2).textContent = patient.First;
+					row.insertCell(3).textContent = patient.Last;
+					row.insertCell(4).textContent = patient.DOB;
+					row.insertCell(5).textContent = patient.Gender;
+					row.insertCell(6).textContent = CryptoJS.AES.decrypt(patient.Address, encryptionKey).toString(CryptoJS.enc.Utf8);
+					row.insertCell(7).textContent = CryptoJS.AES.decrypt(patient.Email, encryptionKey).toString(CryptoJS.enc.Utf8);
+					row.insertCell(8).textContent = CryptoJS.AES.decrypt(patient.Telephone, encryptionKey).toString(CryptoJS.enc.Utf8);
+					
+					// Adding a new column for actions and appending a View button to each row
+					let actionsCell = row.insertCell(9);
+	
+					let viewButton = document.createElement('button');
+					viewButton.textContent = 'View';
+					viewButton.className = 'view-button';
+					viewButton.onclick = function() {
+						window.location.assign(`viewPatient.html?id=${patient.id}`); // Onclick, redireccts to viewPatient.html
+					};
+					actionsCell.appendChild(viewButton);
+	
+					cursor.continue();
+				} else {
+					if (table.rows.length > 1) { // Checks if table has more than 1 row and append records
+						resultDiv.appendChild(table);
+					} else {
+						resultDiv.innerHTML = "<p>No patients found in the Database</p>";
+					}
+				}
+			};
+	
+			cursorRequest.onerror = function(event) {
+				console.log('Error fetching data:', event.target.errorCode);
+			};
+		}
+		// Search Patient function
+		function searchPatient() {
+			const encryptionKey = "1234567890987654321" // Encryption key method
+			let patientId = parseInt(prompt("Enter the Patient ID to search for:")); // Prompting user to ender ID parsed as a decimal number
+	
+			if (!db || isNaN(patientId)) {
+				console.log("Database not initialized or invalid input.");
+				return;
+			}
+			// Creating read only transaction to access Patients data
+			let transaction = db.transaction(['Patients'], 'readonly');
+			let store = transaction.objectStore('Patients');
+			let patientRequest = store.get(patientId); // Retrieving patientId
+	
+			patientRequest.onsuccess = function(event) {
+				let patient = event.target.result;
+				let resultDiv = document.getElementById('result');
+				resultDiv.innerHTML = ''; // Empty string where content goes
+				
+				// Create table with headers
+				if (patient) {
+					let table = document.createElement('table');
+					table.className = "custom-table";
+					let headerRow = table.insertRow();
+					let headers = ['Patient ID', 'NHS', 'First', 'Last', 'DOB', 'Gender', 'Address', 'Email', 'Telephone', 'Actions'];
+					
+					// 
+					headers.forEach(headerText => {
+						let th = document.createElement('th'); // Creating th elements for storing headers
+						th.textContent = headerText;
+						headerRow.appendChild(th);
+					});
+					
+					// Inserting searched patient content with decrypted values
+					let row = table.insertRow();
+					row.insertCell(0).textContent = patient.id;
+					row.insertCell(1).textContent = CryptoJS.AES.decrypt(patient.NHS, encryptionKey).toString(CryptoJS.enc.Utf8);
+					row.insertCell(2).textContent = patient.First;
+					row.insertCell(3).textContent = patient.Last;
+					row.insertCell(4).textContent = patient.DOB;
+					row.insertCell(5).textContent = patient.Gender;
+					row.insertCell(6).textContent = CryptoJS.AES.decrypt(patient.Address, encryptionKey).toString(CryptoJS.enc.Utf8);
+					row.insertCell(7).textContent = CryptoJS.AES.decrypt(patient.Email, encryptionKey).toString(CryptoJS.enc.Utf8);
+					row.insertCell(8).textContent = CryptoJS.AES.decrypt(patient.Telephone,encryptionKey).toString(CryptoJS.enc.Utf8);
+					
+					// Adding a new column for actions and appending a View button to it
+					let actionsCell = row.insertCell(9);
+					let viewButton = document.createElement('button');
+					viewButton.textContent = 'View';
+					viewButton.className = 'view-button';
+					actionsCell.appendChild(viewButton);
+					viewButton.onclick = function() {
+						window.location.assign(`viewPatient.html?id=${patient.id}`);
+					};
+	
+					resultDiv.appendChild(table);
+				} else {
+					resultDiv.innerHTML = "<p>No patient found with ID " + patientId + "</p>"; // If patient ID was not found
+				}
+			};
+		}
+	
+		requestDB.onerror = function(event) {
+			console.error("Error searching for patient:", event.target.errorCode);
+		};
+
+		// getPatientData function to retrieve all patient data from JSON
+		async function getPatientData() {
+			try {
+				const response = await fetch('https://jsethi-mdx.github.io/cst2572.github.io/patients.json');
+				const data = await response.json();
+				return data;
+			} catch (error) {
+				console.error('Error loading JSON data:', error);
+				return [];
+			}
+		}
+
+		// getDoctorData function to retrieve all doctor data from JSON
+		async function getDoctorData() {
+			try {
+				const response = await fetch('https://jsethi-mdx.github.io/cst2572.github.io/doctors.json');
+				const data = await response.json();
+				return data;
+			} catch (error) {
+				console.error('Error loading JSON data:', error);
+				return [];
+			}
+		}
+	
+		// getQueryParam to retrieve URL query parameters
+		function getQueryParam(param) {
+			const urlParams = new URLSearchParams(window.location.search);
+			return urlParams.get(param);
+		}
+		
+		// showContent function containing page content manipulation depending on user
+		async function showContent() {
+			let role = getQueryParam('identity'); // Retrieve identity from URL
+			let email = getQueryParam('emailId'); // Retrieve emailId from URL
+
+			let welcomeName = "User"; // Default welcome message if no one is logged in
+			
+			// if statements which check role and emailId and return a welcome message depending on who logged in
+			if (role === 'patient') {
+				const userData = await getPatientData();
+				const user = userData.find(u => u.Email === email);
+				if (user) {
+					welcomeName = user.First;
+				}
+			} else if (role === 'doctor') {
+				const userData = await getDoctorData();
+				const user = userData.find(u => u.email === email);
+				if (user) {
+					welcomeName = user.first_name;
+				}
+			}
+
+			// Retrieving user content elements and assigning the corresponding welcome message
+			const patientContent = document.getElementById('patient-content');
+			const doctorContent = document.getElementById('doctor-content');
+			const indexContent = document.getElementById('index-content');
+
+			 if (role === 'patient') {
+				patientContent.classList.remove('hidden');
+				document.getElementById('displayPatient').innerText = "Welcome, " + welcomeName;
+				displayPatientNotes();
+			} else if (role === 'doctor') {
+				doctorContent.classList.remove('hidden');
+				document.getElementById('displayDoctor').innerText = "Welcome, " + welcomeName;
+			}
+			else {
+				indexContent.classList.remove('hidden')
+				document.getElementById('displayIndex').innerText = "Welcome, " + welcomeName;
+			}
+		}
+
+		// createRecord function
+		function createRecord() {
+			// Retrieving URL query parameters
+			const email = getQueryParam('emailId');
+			const identity = getQueryParam('identity');
+
+			// Redirect to doctorRecords with identity and emailId
+			if (email && identity) {
+				window.location.href = "doctorRecords.html?identity=" + identity + "&emailId=" + email;
+			}
+
+		}
+		// Opening a connection to VertalDB
+		const request = indexedDB.open('VertalDB', 1);
+
+		// appendToAppointmentsTable function carrying appointmentData variable
+		function appendToAppointmentsTable(appointmentData) {
+			const dbRequest = indexedDB.open('VertalDB', 1);
+
+			dbRequest.onsuccess = (event) => {
+				const db = event.target.result;
+
+				// Creating a read write transaction to establish a connection to the Appointments object store for reading and writing data
+				const transaction = db.transaction(['Appointments'], 'readwrite');
+				const store = transaction.objectStore('Appointments');
+				
+				const addRequest = store.add(appointmentData); // Appending appointment data to Appointments object store
+
+				// Success event handler if append was successful
+				addRequest.onsuccess = () => {
+					console.log('Appointment saved successfully!');
+					alert('Appointment saved successfully!');
+				};
+
+				// Error event handler if error occurred during appending
+				addRequest.onerror = (event) => {
+					console.error('Error saving appointment:', event.target.error);
+				};
+			};
+
+			dbRequest.onerror = (event) => {
+				console.error('IndexedDB error:', event.target.errorCode);
+			};
+		}
+
+		const encryptionKey = "1234567890987654321"; // defining encryption method
+
+		const decryptEmail = (encryptedEmail) => { // decryptEmail function
+			const decrypted = CryptoJS.AES.decrypt(encryptedEmail, encryptionKey);
+			return decrypted.toString(CryptoJS.enc.Utf8);
+		};
+
+		// validation function carrying buttonId variable
+		function validation(buttonId) {
+			if (buttonId === 'bookAppointment') { // Check if buttonId is strictly equal to bookAppointment
+				const email = getQueryParam('emailId');
+				const identity = getQueryParam('identity');
+
+				// Error handling
+				if (identity !== 'patient') {
+					alert("Only patients can book appointments.");
+					return;
+				}
+
+				// Declaring patientID as null
+				let patientID = null; 
+
+				const dbRequest = indexedDB.open('VertalDB', 1); // Opening connection to VertalDB
+
+				// Creating a read only transaction request to the Patients object store
+				dbRequest.onsuccess = function (event) {
+					const db = event.target.result;
+					const transaction = db.transaction(['Patients'], 'readonly');
+					const store = transaction.objectStore('Patients');
+
+					const getAllRequest = store.getAll(); // Retrieving all data in Patients
+
+					getAllRequest.onsuccess = function (event) {
+						const patients = event.target.result;
+						
+						// Calling decryptEmail function to decrypt Email and strictly check if equal to email variable
+						const patient = patients.find((p) => decryptEmail(p.Email) === email);
+
+						// Error handling
+						if (!patient) {
+							alert("Error: Logged-in patient details not found.");
+							return;
+						}
+
+						// Retrieving patientID of user
+						patientID = patient.id;
+
+						// Retrieving and storing values user entered in appointment form
+						const selectedDoctor = document.getElementById('selected-doctor').value || 'Not Specified';
+						const appointmentDate = document.getElementById('appointment-date').value;
+						const appointmentTime = document.getElementById('appointment-time').value;
+						const prescriptionInfo = document.getElementById('prescription-info').value;
+						const quantityInfo = document.getElementById('quantity-info').value;
+
+						// Error handling
+						if (!appointmentDate || !appointmentTime || !prescriptionInfo || !quantityInfo) {
+							alert("All fields except 'Doctor' and 'Prescription' are required.");
+							return;
+						}
+
+						// Storing user values to appointmentData variable
+						const appointmentData = {
+							appointmentID: Math.floor(Math.random() * 1000000),
+							patientID: patientID,
+							doctorID: selectedDoctor,
+							date: appointmentDate,
+							time: appointmentTime,
+							prescription: prescriptionInfo,
+							quantity: quantityInfo,
+						};
+
+						console.log(appointmentData);
+						// Calling appendToAppointmentsTable carrying appointmentData variable
+						appendToAppointmentsTable(appointmentData);
+					};
+					
+					getAllRequest.onerror = function (event) {
+						console.error("Error fetching patients:", event.target.errorCode);
+					};
+				};
+
+				dbRequest.onerror = function (event) {
+					console.error("Database error:", event.target.errorCode);
+				};
+			}
+		}
+
+		// populationDoctorsDropdown function
+		function populateDoctorsDropdown() {
+			const doctorDropdown = document.getElementById('selected-doctor'); // Retrieving selected doctor in appointment form
+
+			// Appending all doctor first and last names to select option in appointment form
+			fetch('https://jsethi-mdx.github.io/cst2572.github.io/doctors.json') // Fetching doctor data from JSON
+				.then(response => response.json())
+				.then(doctors => {
+					doctorDropdown.innerHTML = '<option value="null" disabled selected>Select a doctor</option>';
+					doctors.forEach(({ first_name, last_name }) => {
+						doctorDropdown.innerHTML += `<option value="${first_name} ${last_name}">${first_name} ${last_name}</option>`; // Append first and last name to select option
+					});
+				})
+				// Error handling
+				.catch(error => console.error('Error fetching doctors:', error));
+		}
+
+		// populateMedicineDropdown function
+		function populateMedicineDropdown() {
+			const medicineDropdown = document.getElementById('prescription-info');
+
+			// Appending all medicines to select option in appointment form
+			fetch('https://jsethi-mdx.github.io/cst2572.github.io/medicines.json') // Fetching medicine data from JSON
+				.then(response => response.json())
+				.then(medicines => {
+					medicineDropdown.innerHTML = '<option value="medicine" disabled selected>Select a medicine</option>'; // Append medicine to select option
+					medicines.forEach(({Drug}) => {
+						medicineDropdown.innerHTML += `<option value="${Drug}">${Drug}</option>`;
+					});
+				})
+				// Error handling
+				.catch(error => console.error('Error fetching medicines:', error));
+		}
+				// updateNavLink function
+				function updateNavLink() {
+					// Retrieve emailId and identity parameters from URL
+					const email = getQueryParam('emailId');
+					const identity = getQueryParam('identity');
+					// Retrieving navigation link element IDs
+					const loginButton = document.getElementById('login-button');
+					const homeButton = document.getElementById('home-button');
+					const aboutButton = document.getElementById('about-button');
+					
+					// If user is logged in and interacts with navigation, URL will hold user Email and Identity
+					if (email && identity) {
+						loginButton.href = "login.html?emailId=" + email + "&identity=" + identity;
+						homeButton.href = "index.html?emailId=" + email + "&identity=" + identity;
+						aboutButton.href = "about.html?emailId=" + email + "&identity=" + identity;
+					} else {
+						loginButton.href = 'login.html'
+						homeButton.href = 'index.html'
+						aboutButton.href = 'about.html'
+					}
+				}
+
+				// Calling updateNavLink function
+				updateNavLink();
+
+				// Calling showContent, populateDoctorsDropdown, and populateMedicineDropdown functions on window load
+				window.onload = () => {
+					showContent();
+					populateDoctorsDropdown();
+					populateMedicineDropdown();
+				}
+    </script> <!-- End of script-->
+	
+	<!-- Footer text-->
+	<footer>
+		<p> &copy; 2024 Vertal Clinic. All Rights Reserved.</p> <br>
+	</footer>
+</body>
+</html>
